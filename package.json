@@ -8,7 +8,7 @@
   },
   "scripts": {
     "demo": "tsx src/demo.ts",
-    "start": "tsx --env-file=.env src/bot.ts",
+    "start": "tsx src/start.ts",
     "register": "tsx --env-file=.env src/register.ts",
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",

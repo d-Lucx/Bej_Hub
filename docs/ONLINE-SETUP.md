@@ -71,7 +71,7 @@ A manually created service does not automatically use `render.yaml`. On its **Se
 
 In **Environment**, set `NODE_VERSION=24`, `NODE_ENV=production`, `BEJ_STORAGE=supabase`, `BEJ_AUTH_REQUIRED=true`, and `BEJ_OWNER_EMAIL` to your allowed Google email. Add `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY`, plus the Gemini and Discord settings listed in `render.yaml`. Enter their values privately in Render; copying a local `.env` file into GitHub is not necessary.
 
-Do not use `pnpm run start` here: that command runs only the local bot and explicitly loads local `.env`. The cloud command starts both the website and bot and reads Render's injected environment variables. A `.env: not found` startup error means the service is using the local command.
+`pnpm run cloud` explicitly starts both the website and bot using Render's injected environment variables. The latest `pnpm run start` also detects Render or production mode and selects the cloud service automatically; on your computer in development mode it runs only the local bot with `.env`. If a deploy still shows `tsx --env-file=.env src/bot.ts`, it is using an older commit. Deploy the latest commit instead of uploading `.env`.
 
 If using **Add from .env**, replace local-only values afterward: `BEJ_STORAGE` must be `supabase`, `BEJ_AUTH_REQUIRED` must be `true`, and `BEJ_PUBLIC_URL` must be blank (use Render's automatic external URL) or your exact HTTPS office origin. Set `NODE_VERSION=24` even if a different version was selected previously. Save the configuration, then deploy the latest commit.
 

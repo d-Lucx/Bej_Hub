@@ -3,6 +3,9 @@ import { authPolicy } from './auth-policy.js';
 import { cloudEnabled, database } from './cloud-store.js';
 
 async function main() {
+  const missing = ['BEJ_OWNER_EMAIL', 'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY'].filter(name => !process.env[name]?.trim());
+  if (!process.env.SUPABASE_SECRET_KEY?.trim() && !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) missing.push('SUPABASE_SECRET_KEY');
+  if (missing.length) { console.error(`Cloud startup blocked. Missing settings: ${missing.join(', ')}. Add them in Render Environment.`); process.exitCode = 1; return; }
   const policy = authPolicy();
   if (!policy.required || !cloudEnabled()) throw new Error('Cloud startup requires Google authentication and Supabase storage.');
   await database('studio_records?select=key&limit=0');
