@@ -1,10 +1,10 @@
-# Bej Hub v1.0
+# Bej Hub v1.1
 
-**Local studio release · v1.0.0** · [Release notes](CHANGELOG.md) · [Versioned source](https://github.com/d-Lucx/Bej_Hub/tree/v1.0.0)
+**Private studio · v1.1.0** · [Release notes](CHANGELOG.md) · [Original v1.0 release](https://github.com/d-Lucx/Bej_Hub/tree/v1.0.0)
 
 A cozy pixel studio for an AI team. Assign a mission from Discord or the local office, follow the Manager → Researcher → Writer workflow, and review the draft before delivery.
 
-Built with TypeScript, Discord.js, Gemini, Next.js, React, and Phaser. Supabase provides an optional private mirror of mission records. The current app runs on your computer.
+Built with TypeScript, Discord.js, Gemini, Next.js, React, and Phaser. Supabase provides an optional private mirror of mission records. Run locally or deploy the office and bot together on Render with private Google sign-in.
 
 ## What works today
 
@@ -16,7 +16,7 @@ Built with TypeScript, Discord.js, Gemini, Next.js, React, and Phaser. Supabase 
 - A persistent local queue supports cancellation before work starts. Failed missions can be reviewed and resubmitted.
 - Mock mode exercises the workflow without an AI key or token usage.
 
-**Phase 3 is complete for the local MVP**, released as v1.0.0. A hosted office with authenticated Supabase Realtime is still planned.
+**Phase 3 is complete for the local MVP** (v1.0.0). Version 1.1 adds owner-only Google sign-in, authoritative Supabase storage, and free Render deployment configuration. Online access still requires your Google, Supabase, and Render setup. See the **[online setup guide](docs/ONLINE-SETUP.md)**.
 
 | Original phase | Current status |
 | --- | --- |
@@ -24,7 +24,13 @@ Built with TypeScript, Discord.js, Gemini, Next.js, React, and Phaser. Supabase 
 | 2 · State and office | Local Phaser office and Supabase database mirroring work; the UI currently polls local records |
 | 3 · Walking and human review | Complete locally: walking handoffs, idle motion, clarification, approval, and pixel identity |
 
-Hosted Realtime subscriptions, cloud authentication, and deployment remain separate follow-up work because the current priority is local use.
+The office uses authenticated polling in cloud mode; Supabase Realtime subscriptions remain optional future work.
+
+## Online access
+
+Follow **[Private online Bej Hub](docs/ONLINE-SETUP.md)** for the Supabase migration, Google OAuth, free Render deployment, history import, and optional UptimeRobot monitor. Hosting is best effort and can sleep. Production denies access unless Google authentication is configured, and only the configured owner email can access the office and its APIs.
+
+Resolved Discord review cards now close automatically within about five seconds. On restart, the bot also recovers the latest 100 channel messages to close older cards. It needs View Channel and Read Message History permissions. New cards are persisted and tracked even after they leave that recent history window.
 
 ## Quick start
 
@@ -190,6 +196,9 @@ Restart the bot to mirror local records every five seconds. Records include prom
 | `bej.cmd live-test` | Live local Gemini workflow; consumes quota, sends nothing to Discord |
 | `bej.cmd check` | Checks the bot and shared TypeScript code |
 | `bej.cmd test` | Runs all offline tests |
+| `bej.cmd close-reviews` | Close resolved review cards in up to 2,000 recent Discord messages |
+| `bej.cmd cloud-check` | Verify cloud tables and atomic functions without running a mission |
+| `bej.cmd cloud-import` | Copy local history to Supabase without executing queued work |
 | `bej.cmd brand-discord` | Applies the studio mark to the main bot and webhook profiles |
 | `pnpm assets` | Rebuilds favicon, touch icon, and avatar files |
 | `pnpm exec tsc --project tsconfig.web.json --noEmit` | Checks web TypeScript code |

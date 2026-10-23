@@ -6,7 +6,7 @@ const files = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-fi
 let env = '';
 try { env = readFileSync('.env', 'utf8'); } catch { /* Signature checks still work on a fresh clone. */ }
 const configuredSecrets = env.split(/\r?\n/).flatMap(line => {
-  const match = line.match(/^([A-Z_]*(?:KEY|TOKEN|WEBHOOK_URL))\s*=\s*(.*)$/);
+  const match = line.match(/^([A-Z_]*(?:KEY|TOKEN|WEBHOOK_URL)|BEJ_OWNER_EMAIL)\s*=\s*(.*)$/);
   if (!match) return [];
   const value = match[2].trim().replace(/^(['"])(.*)\1$/, '$2');
   return value.length >= 12 ? [value] : [];

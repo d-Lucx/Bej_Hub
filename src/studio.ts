@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, readFile, writeFile, rename, unlink } from 'node:fs/promises';
+import { open, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 import type { Mission, Provider, Role, State, StudioEvent } from './contracts.js';
+import { readMission, saveMission } from './mission-store.js';
+import { cloudEnabled, rpc } from './cloud-store.js';
+import { currentReview } from './review-state.js';
 
 export interface Messenger { send(role: Role, text: string): Promise<void>; requestReview?(mission: Mission): Promise<void> }
 export class Studio {
@@ -14,11 +17,7 @@ export class Studio {
   // Local CLI demos can opt out; the bot always enables human approval.
   constructor(private provider: Provider, private messenger: Messenger, private directory = 'data/missions', private researchMode: 'google_search' | 'supplied' = 'google_search', private approvalRequired = false) {}
   private async save(mission: Mission) {
-    await mkdir(this.directory, { recursive: true });
-    const path = join(this.directory, `${mission.id}.json`);
-    const temp = `${path}.${randomUUID()}.tmp`;
-    await writeFile(temp, JSON.stringify(mission, null, 2), 'utf8');
-    await rename(temp, path);
+    await saveMission(mission, this.directory);
   }
   private async event(mission: Mission, role: Role, state: State, speech: string, payload: unknown = {}, target?: Role) {
     const entry: StudioEvent = { version: 1, mission_id: mission.id, agent_id: role, next_state: state, target_agent: target, speech_bubble: speech, payload, timestamp: new Date().toISOString() };
@@ -89,7 +88,7 @@ export class Studio {
     const mission: Mission = { id: randomUUID(), prompt, created_by: user, mode: this.provider.mode, status: 'RUNNING', tokens_used: 0, created_at: new Date().toISOString(), events: [], source_text: sourceText, requires_human_approval: this.approvalRequired };
     return this.process(mission, () => this.execute(mission));
   }
-  async respond(id: string, action: 'approve' | 'reject' | 'clarify', user: string, response?: string): Promise<Mission> {
+  async respond(id: string, action: 'approve' | 'reject' | 'clarify', user: string, response?: string, expectedKey?: string): Promise<Mission> {
     if (!z.uuid().safeParse(id).success) throw new Error('Use the full mission ID shown in the review card.');
     if (this.busy) throw new Error('The office is busy. Try the review action again when it is free.');
     if (action === 'clarify' && (!response?.trim() || response.length > 2000)) throw new Error('Clarification must contain 1–2000 characters.');
@@ -97,11 +96,14 @@ export class Studio {
     let lock;
     const lockPath = join(this.directory, `${id}.review.lock`);
     try {
-      try { lock = await open(lockPath, 'wx'); } catch { throw new Error('This mission is already being reviewed.'); }
-      const mission = JSON.parse(await readFile(join(this.directory, `${id}.json`), 'utf8')) as Mission;
+      const cloud = cloudEnabled() && this.directory === 'data/missions';
+      if (!cloud) { try { lock = await open(lockPath, 'wx'); } catch { throw new Error('This mission is already being reviewed.'); } }
+      const mission = await readMission(id, this.directory);
+      if (!currentReview(mission, action, expectedKey)) throw new Error('This action no longer matches the mission state. Refresh the office or use /status.');
       const waiting = mission.status === 'WAITING_APPROVAL' || mission.status === 'WAITING_CLARIFICATION';
       if (!waiting || action === 'approve' && mission.status !== 'WAITING_APPROVAL' || action === 'clarify' && mission.status !== 'WAITING_CLARIFICATION') throw new Error('This action no longer matches the mission state. Refresh the office or use /status.');
       if (action === 'clarify' && mission.mode !== this.provider.mode) throw new Error('Use the original AI mode to resume this mission.');
+      if (cloud && !await rpc<boolean>('claim_studio_review', { p_id: id, p_expected: mission, p_next: action === 'approve' ? 'DELIVERING' : 'RUNNING' })) throw new Error('This review was already claimed or changed. Refresh the office.');
       return await this.process(mission, async () => {
         if (action === 'reject') {
           mission.status = 'REJECTED'; mission.reviewed_by = user; mission.reviewed_at = new Date().toISOString();

@@ -10,7 +10,7 @@ function ReviewCard({ mission, queued, online, onNotice }: { mission: any; queue
   async function respond(action: string) {
     setBusy(true);
     try {
-      const result = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: mission.id, action, ...(action === 'clarify' ? { response } : {}) }) });
+      const result = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: mission.id, action, key: mission.review_key, ...(action === 'clarify' ? { response } : {}) }) });
       const data = await result.json(); onNotice(result.ok ? data.message : data.error);
     } catch { onNotice('Could not send your review. Check the office connection.'); }
     finally { setBusy(false); }

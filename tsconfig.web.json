@@ -25,6 +25,7 @@
     ]
   },
   "include": [
+    "proxy.ts",
     "next-env.d.ts",
     "app/**/*.ts",
     "app/**/*.tsx",

@@ -7,7 +7,7 @@ import { MockProvider, GeminiProvider } from '../src/providers.js';
 import type { Brief, Mission, Result } from '../src/contracts.js';
 import { projectOffice } from '../src/office-state.js';
 import { ReviewInput } from '../src/queue-store.js';
-import { reviewMessage } from '../src/discord-review.js';
+import { reviewMessage, reviewKey, currentReview, closedReviewMessage } from '../src/discord-review.js';
 
 async function workspace(fn: (directory: string) => Promise<void>) {
   const root = resolve('data/test-workspaces'); await mkdir(root, { recursive: true });
@@ -104,6 +104,18 @@ test('Discord review cards encode the intended mission and action', () => {
   const approve = message.components[0].components[0].data;
   const reject = message.components[0].components[1].data;
   assert('custom_id' in approve); assert('custom_id' in reject);
-  assert.equal(approve.custom_id, `bej:approve:${mission.id}`);
-  assert.equal(reject.custom_id, `bej:reject:${mission.id}`);
+  assert.equal(approve.custom_id, `bej:approve:${mission.id}:${reviewKey(mission)}`);
+  assert.equal(reject.custom_id, `bej:reject:${mission.id}:${reviewKey(mission)}`);
+});
+test('resolved and superseded review cards cannot act on a newer review turn', () => {
+  const mission = { id: 'c4ae0e1a-e180-4f68-b3ae-2c3dba75a649', mode: 'mock', status: 'WAITING_CLARIFICATION', prompt: 'Test', created_by: 'owner', tokens_used: 0, created_at: '2026-10-23', events: [], clarifications: [] } as Mission;
+  const oldKey = reviewKey(mission);
+  assert(currentReview(mission, 'clarify', oldKey));
+  mission.clarifications = ['Clarify the app.'];
+  assert(!currentReview(mission, 'clarify', oldKey));
+  assert(!currentReview(mission, 'reject', oldKey));
+  mission.status = 'COMPLETED';
+  assert(!currentReview(mission, 'approve'));
+  assert.deepEqual(closedReviewMessage(mission).components, []);
+  assert.match(closedReviewMessage(mission).content, /completed/);
 });

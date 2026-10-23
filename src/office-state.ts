@@ -1,6 +1,9 @@
-import { readdir, readFile } from 'node:fs/promises';
-import type { Mission, Role, State } from './contracts.js';
+import type { Mission, Role, State } from './contracts.ts';
 import { readBotStatus } from './bot-status.ts';
+import { listMissions } from './mission-store.ts';
+import { listQueue } from './queue-store.ts';
+import { cloudEnabled } from './cloud-store.ts';
+import { reviewKey } from './review-state.ts';
 
 export const team = [
   { id: 'manager' as Role, name: 'Bej Manager', role: 'Plans & coordinates', color: '#bb764c', x: 235, y: 260 },
@@ -19,18 +22,12 @@ export function projectOffice(missions: Mission[], queued: any[] = []) {
     const state: State = pending ?? (latest?.status === 'RUNNING' && !stale ? event?.next_state ?? 'IDLE' : latest?.status === 'FAILED' && agent.id === 'manager' ? 'BLOCKED' : 'IDLE');
     return { ...agent, state, speech: stale ? 'Previous mission interrupted. Check the bot terminal.' : event?.speech_bubble || 'Ready when you are.', events: latest?.events.filter(event => event.agent_id === agent.id).map(({ payload, ...event }) => event) ?? [] };
   });
-  const summary = ({ events, brief, ...mission }: Mission) => ({ ...mission, clarification_question: brief?.clarification_question, retry_sources: mission.source_text ?? brief?.supplied_text, source_kind: brief?.source_kind, events: events.map(({ payload, ...event }) => event) });
+  const summary = ({ events, brief, ...mission }: Mission) => ({ ...mission, review_key: reviewKey({ ...mission, events, brief }), clarification_question: brief?.clarification_question, retry_sources: mission.source_text ?? brief?.supplied_text, source_kind: brief?.source_kind, events: events.map(({ payload, ...event }) => event) });
   const handoffs = sorted.flatMap(mission => mission.events.flatMap((event, index) => event.next_state === 'HANDOFF' && event.target_agent ? [{ key: `${mission.id}:${index}`, mission_id: mission.id, agent_id: event.agent_id, target_agent: event.target_agent, timestamp: event.timestamp }] : [])).sort((a, b) => a.timestamp.localeCompare(b.timestamp)).slice(-100);
   return { agents, handoffs, missions: sorted.slice(0, 20).map(summary), pending: sorted.filter(mission => mission.status === 'WAITING_APPROVAL' || mission.status === 'WAITING_CLARIFICATION').map(summary), queued, tokens: sorted.reduce((sum, mission) => sum + mission.tokens_used, 0), stale: !!stale, active: latest?.status === 'RUNNING' && !stale, sync: 'local', now: new Date().toISOString() };
 }
 export async function readOffice() {
-  const files = await readdir('data/missions').catch(() => [] as string[]);
-  const missions = await Promise.all(files.filter(name => name.endsWith('.json')).map(async name => {
-    try { return JSON.parse(await readFile(`data/missions/${name}`, 'utf8')) as Mission; } catch { return null; }
-  }));
-  const queueFiles = await readdir('data/queue').catch(() => [] as string[]);
-  const queued = await Promise.all(queueFiles.filter(name => name.endsWith('.json')).map(async name => {
-    try { const entry = JSON.parse(await readFile(`data/queue/${name}`, 'utf8')); const linked = missions.find(mission => mission?.id === entry.mission_id); return { id: entry.id, prompt: entry.prompt, status: linked && ['WAITING_APPROVAL', 'WAITING_CLARIFICATION'].includes(entry.status) ? linked.status : entry.status, error: entry.error, created_at: entry.created_at, review_id: entry.review_id, action: entry.action }; } catch { return null; }
-  }));
-  return { ...projectOffice(missions.filter((mission): mission is Mission => mission !== null), queued.filter(Boolean).sort((a, b) => b!.created_at.localeCompare(a!.created_at)).slice(0, 20)), bot: await readBotStatus() };
+  const [missions, rows, bot] = await Promise.all([listMissions(), listQueue(), readBotStatus()]);
+  const queued = rows.map(({ entry }) => { const linked = missions.find(mission => mission.id === entry.mission_id); return { id: entry.id, prompt: entry.prompt, status: linked && ['WAITING_APPROVAL', 'WAITING_CLARIFICATION'].includes(entry.status) ? linked.status : entry.status, error: entry.error, created_at: entry.created_at, review_id: entry.review_id, action: entry.action }; });
+  return { ...projectOffice(missions, queued.sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 20)), sync: cloudEnabled() ? 'supabase' : 'local', bot };
 }

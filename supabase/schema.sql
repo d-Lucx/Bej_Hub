@@ -27,9 +27,9 @@ create or replace function public.sync_studio_mission(p_mission jsonb)
 returns void language plpgsql security invoker set search_path = public as $$
 declare e jsonb; n bigint; agent_time timestamptz; agent_state text;
 begin
-  insert into public.missions(id,prompt,status,created_by,created_at,tokens_used,snapshot)
-  values ((p_mission->>'id')::uuid,p_mission->>'prompt',p_mission->>'status',p_mission->>'created_by',(p_mission->>'created_at')::timestamptz,(p_mission->>'tokens_used')::bigint,p_mission)
-  on conflict (id) do update set status=excluded.status,tokens_used=excluded.tokens_used,snapshot=excluded.snapshot;
+  insert into public.missions(id,prompt,status,created_by,created_at,tokens_used,requires_human_approval,snapshot)
+  values ((p_mission->>'id')::uuid,p_mission->>'prompt',p_mission->>'status',p_mission->>'created_by',(p_mission->>'created_at')::timestamptz,(p_mission->>'tokens_used')::bigint,coalesce((p_mission->>'requires_human_approval')::boolean,false),p_mission)
+  on conflict (id) do update set status=excluded.status,tokens_used=excluded.tokens_used,requires_human_approval=excluded.requires_human_approval,snapshot=excluded.snapshot;
   for e,n in select value,ordinality from jsonb_array_elements(p_mission->'events') with ordinality loop
     insert into public.agent_logs(mission_id,event_index,agent_id,thought_summary,timestamp,event)
     values ((p_mission->>'id')::uuid,n::int,e->>'agent_id',e->>'speech_bubble',(e->>'timestamp')::timestamptz,e)

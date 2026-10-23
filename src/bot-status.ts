@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { cloudEnabled, cloudRead, cloudWrite } from './cloud-store.ts';
 
 export type BotStatus = { online: boolean; version?: string; mode?: string; model?: string; researchMode?: string; activeMission?: string; updatedAt?: string };
 export function parseBotStatus(value: any, now = Date.now()): BotStatus {
@@ -9,6 +10,7 @@ export function parseBotStatus(value: any, now = Date.now()): BotStatus {
   return { online: value.online === true, version: value.version, mode: value.mode, model: value.model, researchMode: value.researchMode, activeMission: value.activeMission, updatedAt: value.updatedAt };
 }
 export async function readBotStatus(directory = 'data'): Promise<BotStatus> {
+  if (cloudEnabled() && directory === 'data') return parseBotStatus(await cloudRead('status', 'bot'));
   try { return parseBotStatus(JSON.parse(await readFile(join(directory, 'bot-status.json'), 'utf8'))); }
   catch { return { online: false }; }
 }
@@ -18,6 +20,7 @@ export function startBotStatus(snapshot: () => Omit<BotStatus, 'updatedAt'>, dir
     if (busy) return;
     busy = true;
     try {
+      if (cloudEnabled() && directory === 'data') { await cloudWrite('status', 'bot', { ...snapshot(), updatedAt: new Date().toISOString() }); return; }
       await mkdir(directory, { recursive: true });
       const path = join(directory, 'bot-status.json');
       const temp = `${path}.${randomUUID()}.tmp`;

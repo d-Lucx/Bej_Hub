@@ -16,7 +16,10 @@ if /i "%BEJ_ACTION%"=="office" goto office
 if /i "%BEJ_ACTION%"=="supabase-check" goto supabase-check
 if /i "%BEJ_ACTION%"=="supabase-sync-check" goto supabase-sync-check
 if /i "%BEJ_ACTION%"=="brand-discord" goto brand-discord
-echo Usage: bej.cmd [demo^|register^|start^|check^|test^|live-test^|office^|supabase-check^|supabase-sync-check^|brand-discord]
+if /i "%BEJ_ACTION%"=="cloud-import" goto cloud-import
+if /i "%BEJ_ACTION%"=="cloud-check" goto cloud-check
+if /i "%BEJ_ACTION%"=="close-reviews" goto close-reviews
+echo Usage: bej.cmd [demo^|register^|start^|check^|test^|live-test^|office^|supabase-check^|supabase-sync-check^|brand-discord^|cloud-import^|cloud-check^|close-reviews]
 exit /b 1
 :demo
 "%BEJ_NODE%" node_modules/tsx/dist/cli.mjs src/demo.ts
@@ -47,4 +50,13 @@ exit /b %errorlevel%
 exit /b %errorlevel%
 :brand-discord
 "%BEJ_NODE%" node_modules/tsx/dist/cli.mjs --env-file=.env src/brand-discord.ts
+exit /b %errorlevel%
+:cloud-import
+"%BEJ_NODE%" node_modules/tsx/dist/cli.mjs --env-file=.env src/cloud-import.ts
+exit /b %errorlevel%
+:cloud-check
+"%BEJ_NODE%" node_modules/tsx/dist/cli.mjs --env-file=.env src/cloud-check.ts
+exit /b %errorlevel%
+:close-reviews
+"%BEJ_NODE%" node_modules/tsx/dist/cli.mjs --env-file=.env src/close-reviews.ts
 exit /b %errorlevel%

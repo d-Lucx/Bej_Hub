@@ -6,19 +6,19 @@ import { Studio } from './studio.js';
 import { startWebQueue } from './web-queue.js';
 import { startSupabaseSync } from './supabase-sync.js';
 import { startBotStatus } from './bot-status.js';
-import { reviewMessage } from './discord-review.js';
+import { currentReview } from './discord-review.js';
+import { DiscordReviews } from './discord-review-sync.js';
+import { readMission } from './mission-store.js';
+import { z } from 'zod';
 import { APP_VERSION } from './version.js';
 
 async function main() {
   const settings = config();
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+  const reviews = new DiscordReviews(client, settings.DISCORD_CHANNEL_ID);
   const messenger = new DiscordMessenger(settings.DISCORD_WEBHOOK_URL, {
     manager: process.env.MANAGER_AVATAR_URL, researcher: process.env.RESEARCHER_AVATAR_URL, writer: process.env.WRITER_AVATAR_URL,
-  }, async mission => {
-    const channel = await client.channels.fetch(settings.DISCORD_CHANNEL_ID);
-    if (!channel?.isSendable()) throw new Error('Office channel cannot receive review cards.');
-    await channel.send(reviewMessage(mission));
-  });
+  }, mission => reviews.send(mission));
   const studio = new Studio(settings.AI_MODE === 'mock' ? new MockProvider() : new GeminiProvider(settings.GEMINI_API_KEY!, settings.GEMINI_MODEL), messenger, 'data/missions', settings.RESEARCH_MODE, true);
   // Validate the destination before allowing any mission to post through it.
   const webhookResponse = await fetch(settings.DISCORD_WEBHOOK_URL, { signal: AbortSignal.timeout(15000) });
@@ -28,6 +28,7 @@ async function main() {
   client.once(Events.ClientReady, ready => {
     console.log(`Bej Hub v${APP_VERSION} connected as ${ready.user.tag} (${settings.AI_MODE}).`);
     startWebQueue(studio);
+    reviews.start();
     startSupabaseSync();
     startBotStatus(() => ({ online: client.isReady(), version: APP_VERSION, mode: settings.AI_MODE, model: settings.GEMINI_MODEL, researchMode: settings.RESEARCH_MODE, activeMission: studio.active?.id }));
   });
@@ -40,17 +41,23 @@ async function main() {
       }
       if (interaction.isButton() || interaction.isModalSubmit()) {
         const parts = interaction.customId.split(':');
-        if (parts[0] !== 'bej' || parts.length !== 3) return;
-        const [, action, id] = parts;
+        if (parts[0] !== 'bej' || ![3, 4].includes(parts.length)) return;
+        const [, action, id, key] = parts;
+        if (!z.uuid().safeParse(id).success) return;
+        const saved = await readMission(id);
+        if (!currentReview(saved, action === 'clarify-form' ? 'clarify' : action, key)) {
+          await interaction.reply({ content: 'This review has already been resolved or replaced. Use the newest review card or the office.', flags: MessageFlags.Ephemeral });
+          void reviews.sync().catch(() => {}); return;
+        }
         if (interaction.isButton() && action === 'clarify') {
           const input = new TextInputBuilder().setCustomId('response').setLabel('Clarify the intended task or subject').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(2000);
-          await interaction.showModal(new ModalBuilder().setCustomId(`bej:clarify-form:${id}`).setTitle('Clarify this mission').addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input)));
+          await interaction.showModal(new ModalBuilder().setCustomId(`bej:clarify-form:${id}${key ? `:${key}` : ''}`).setTitle('Clarify this mission').addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input)));
           return;
         }
         const resolved = action === 'clarify-form' && interaction.isModalSubmit() ? 'clarify' : action;
         if (resolved !== 'approve' && resolved !== 'reject' && resolved !== 'clarify') return;
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        const result = await studio.respond(id, resolved, interaction.user.id, interaction.isModalSubmit() ? interaction.fields.getTextInputValue('response') : undefined);
+        const result = await studio.respond(id, resolved, interaction.user.id, interaction.isModalSubmit() ? interaction.fields.getTextInputValue('response') : undefined, key);
         await interaction.editReply(`Mission ${result.id}: ${result.status.toLowerCase()}.`).catch(() => {});
         return;
       }

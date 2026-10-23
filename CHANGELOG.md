@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.0 — 2026-10-23
+
+- Close resolved Discord review and clarification cards, including responses from the office and slash commands. Recover recent older cards on startup.
+- Bind new Discord buttons, modal responses, and queued web reviews to their specific review turn; reject stale responses.
+- Add server-verified Google sign-in, an exact owner email allowlist, HTTP-only sessions, sign-out, origin checks, and private API protection. Production fails closed without configuration.
+- Add authoritative Supabase storage for missions, queue, heartbeat, and review-card tracking, with atomic claims and no local fallback during an outage.
+- Add a free Render Blueprint running the bot and office together, a public data-free health endpoint, history importer, cloud checks, and online setup guide. Hosted Google sign-in requires external account/provider setup before use.
+- Preserve localhost development and pin pixel avatar URLs to the original artwork release.
+
 ## v1.0.0 — 2026-10-23
 
 First release of the local Bej Hub virtual studio, completing the local Phase 3 milestone.

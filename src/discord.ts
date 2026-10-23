@@ -1,13 +1,14 @@
 import { WebhookClient } from 'discord.js';
 import type { Role, Mission } from './contracts.js';
 import type { Messenger } from './studio.js';
-import { APP_VERSION } from './version.js';
+// Keep artwork pinned to its published tag when application versions change.
+const AVATAR_VERSION = '1.0.0';
 
 const names: Record<Role, string> = { manager: 'Bej Manager', researcher: 'Research Bot', writer: 'Writer Bot' };
 export const PIXEL_AVATARS: Record<Role, string> = {
-  manager: `https://raw.githubusercontent.com/d-Lucx/Bej_Hub/v${APP_VERSION}/public/avatars/manager.png`,
-  researcher: `https://raw.githubusercontent.com/d-Lucx/Bej_Hub/v${APP_VERSION}/public/avatars/researcher.png`,
-  writer: `https://raw.githubusercontent.com/d-Lucx/Bej_Hub/v${APP_VERSION}/public/avatars/writer.png`,
+  manager: `https://raw.githubusercontent.com/d-Lucx/Bej_Hub/v${AVATAR_VERSION}/public/avatars/manager.png`,
+  researcher: `https://raw.githubusercontent.com/d-Lucx/Bej_Hub/v${AVATAR_VERSION}/public/avatars/researcher.png`,
+  writer: `https://raw.githubusercontent.com/d-Lucx/Bej_Hub/v${AVATAR_VERSION}/public/avatars/writer.png`,
 };
 export function chunks(text: string, limit = 1900): string[] {
   const result: string[] = [];

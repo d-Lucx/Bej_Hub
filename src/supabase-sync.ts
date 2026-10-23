@@ -1,8 +1,10 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { supabaseSettings } from './supabase-config.js';
+import { cloudEnabled } from './cloud-store.js';
 
 // Optional server-only mirror. Failed sync never interrupts an agent workflow.
 export function startSupabaseSync() {
+  if (cloudEnabled()) return; // Cloud missions are already written durably.
   if (!process.env.SUPABASE_URL || !(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) return;
   let settings;
   try { settings = supabaseSettings(); } catch { console.error('Supabase sync disabled: check the project URL and server secret key.'); return; }
