@@ -23,7 +23,7 @@ export class Studio {
     const entry: StudioEvent = { version: 1, mission_id: mission.id, agent_id: role, next_state: state, target_agent: target, speech_bubble: speech, payload, timestamp: new Date().toISOString() };
     mission.events.push(entry);
     await this.save(mission);
-    await this.messenger.send(role, `[${mission.mode.toUpperCase()} · ${mission.id.slice(0, 8)} · ${state}] ${speech}`);
+    await this.messenger.send(role, `[${state}] ${speech}`);
   }
   private count(mission: Mission, tokens: number) { mission.tokens_used += tokens; this.sessionTokens += tokens; }
   private sourceFooter(mission: Mission) {
