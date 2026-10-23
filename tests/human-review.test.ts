@@ -57,6 +57,29 @@ test('approval survives restart, rejects double clicks, and calls no model durin
     assert.equal(JSON.parse(await readFile(join(directory, `${mission.id}.json`), 'utf8')).status, 'COMPLETED');
   });
 });
+test('clarification does not reattach a discarded premise to the resolved research goal', async () => {
+  await workspace(async directory => {
+    const goals: string[] = [];
+    class ResolvedProvider extends MockProvider {
+      async plan(prompt: string) {
+        return { value: { research_goal: prompt.includes('Human clarification') ? 'Describe the educational reading app for parents.' : 'Describe this film festival.', writing_goal: 'Write a friendly introduction for parents.' }, tokens: 0 };
+      }
+      async research(goal: string, sourceText?: string): Promise<Result<Brief>> {
+        goals.push(goal);
+        const base = await super.research(goal, sourceText);
+        return { ...base, value: { ...base.value, alignment: goal.includes('film festival') ? 'conflict' : 'supported', clarification_question: 'Did you mean the reading app?' } };
+      }
+    }
+    const studio = new Studio(new ResolvedProvider(), { async send() {} }, directory, 'supplied', true);
+    const original = await studio.run('Describe this film festival.', 'owner', 'An educational reading app.');
+    assert.equal(original.status, 'WAITING_CLARIFICATION');
+    const resumed = await studio.respond(original.id, 'clarify', 'owner', 'Focus on the educational reading app for parents.');
+    assert.equal(resumed.status, 'WAITING_APPROVAL');
+    assert.equal(goals.length, 2);
+    assert.equal(goals[1], 'Describe the educational reading app for parents.');
+    assert(!goals[1].includes('film festival'));
+  });
+});
 test('reject never delivers a draft and a failed notification keeps review pending', async () => {
   await workspace(async directory => {
     const sent: string[] = [];

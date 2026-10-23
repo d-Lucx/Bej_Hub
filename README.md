@@ -7,14 +7,22 @@ Built with TypeScript, Discord.js, Gemini, Next.js, React, and Phaser. Supabase 
 ## What works today
 
 - Three agent personas share one Discord webhook, with progress messages and structured handoffs.
-- A pixel office shows agent states, mission history, a journal, token totals, and bot connectivity.
+- A pixel office shows agent states, walking handoffs, idle coffee trips, mission history, a journal, token totals, and bot connectivity.
 - Missions accept reference text. Researcher analyzes it without Google Search and cites it as `[S1]`.
 - Conflicting premises or missing essential evidence pause the mission for clarification before Writer runs.
 - Draft review is available through Discord buttons and the office. Approval delivers the saved draft; rejection ends the mission.
 - A persistent local queue supports cancellation before work starts. Failed missions can be reviewed and resubmitted.
 - Mock mode exercises the workflow without an AI key or token usage.
 
-Walking handoffs, richer avatar animations, and a hosted office with authenticated Supabase Realtime are planned.
+The local MVP is in **Phase 3: walking handoffs and human review**. A hosted office with authenticated Supabase Realtime is still planned.
+
+| Original phase | Current status |
+| --- | --- |
+| 1 · Discord workflow | Working: Manager, Researcher, Writer, and shared-webhook personas |
+| 2 · State and office | Local Phaser office and Supabase database mirroring work; the UI currently polls local records |
+| 3 · Walking and human review | Walking handoffs, idle motion, clarification, and approval controls are implemented locally |
+
+Hosted Realtime subscriptions, cloud authentication, and deployment remain separate follow-up work because the current priority is local use.
 
 ## Quick start
 
@@ -51,6 +59,14 @@ Open two terminals in the project directory:
 Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)**. Keep both terminals open. After a code or `.env` change, stop the bot with **Ctrl+C** and start it again.
 
 For an account-free terminal demonstration, run `bej.cmd demo`. It always uses mock mode and saves a local mission record. Terminal demos and `live-test` print drafts locally and bypass final approval; use Discord or the office to test the review controls.
+
+### Office motion
+
+Click **Preview motion** above the room to watch a Manager → Researcher → Writer handoff without creating a mission, calling AI, or posting to Discord. Agents carry an envelope, follow paths around furniture, and return to their own desks. Idle agents sometimes visit a break spot and return; thinking dots, typing hands, monitor light, and review alerts reflect their current states.
+
+**Pause motion** returns the agents to their desks and stops the room's motion. Your choice is saved in this browser, and the office also respects your operating system's reduced-motion setting. Status text remains available while motion is paused.
+
+Live walking follows newly observed handoff events. Opening the office does not replay old history, and repeated polling does not replay the same handoff. Animations visualize transfers already handled by the workflow; they do not delay backend work or approval. Long-unseen events are skipped instead of creating an animation backlog.
 
 ## Discord setup
 
@@ -116,6 +132,8 @@ Focus on the educational reading app described in the source. Write a friendly 1
 
 The team should recheck the same source and produce a draft in `WAITING_APPROVAL`. Review the text, then click **Approve & deliver** or **Reject**. Approval sends the saved draft to the private Discord office without another AI call. A stale or repeated approval is rejected.
 
+After clarification, Manager produces a task reflecting your corrected intent, and Researcher receives that resolved task without the discarded premise being appended again. The Writer is instructed to keep discarded interpretations and irrelevant negative disclaimers out of the final copy.
+
 Conflict detection is model-assisted and can make mistakes. This test exercises a clear contradiction; optional missing tone or audience preferences alone should not trigger clarification. Resuming after clarification can use additional AI quota.
 
 ## Mission controls and persistence
@@ -172,6 +190,7 @@ GitHub Actions runs both TypeScript checks and the offline tests without service
 | `src/providers.ts` | Mock/Gemini adapters, structured output, and source analysis |
 | `src/bot.ts`, `src/discord*.ts` | Discord commands, personas, and review cards |
 | `src/queue-store.ts`, `src/web-queue.ts` | Persistent queue and cancellation controls |
+| `src/office-motion.ts` | Furniture-aware A* paths, movement, and handoff-event deduplication |
 | `src/supabase*.ts`, `supabase/` | Optional database mirror and setup |
 | `tests/` | Offline workflow, permissions, concurrency, and review tests |
 | `data/` | Private runtime records; ignored by Git |

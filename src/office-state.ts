@@ -20,7 +20,8 @@ export function projectOffice(missions: Mission[], queued: any[] = []) {
     return { ...agent, state, speech: stale ? 'Previous mission interrupted. Check the bot terminal.' : event?.speech_bubble || 'Ready when you are.', events: latest?.events.filter(event => event.agent_id === agent.id).map(({ payload, ...event }) => event) ?? [] };
   });
   const summary = ({ events, brief, ...mission }: Mission) => ({ ...mission, clarification_question: brief?.clarification_question, retry_sources: mission.source_text ?? brief?.supplied_text, source_kind: brief?.source_kind, events: events.map(({ payload, ...event }) => event) });
-  return { agents, missions: sorted.slice(0, 20).map(summary), pending: sorted.filter(mission => mission.status === 'WAITING_APPROVAL' || mission.status === 'WAITING_CLARIFICATION').map(summary), queued, tokens: sorted.reduce((sum, mission) => sum + mission.tokens_used, 0), stale: !!stale, active: latest?.status === 'RUNNING' && !stale, sync: 'local', now: new Date().toISOString() };
+  const handoffs = sorted.flatMap(mission => mission.events.flatMap((event, index) => event.next_state === 'HANDOFF' && event.target_agent ? [{ key: `${mission.id}:${index}`, mission_id: mission.id, agent_id: event.agent_id, target_agent: event.target_agent, timestamp: event.timestamp }] : [])).sort((a, b) => a.timestamp.localeCompare(b.timestamp)).slice(-100);
+  return { agents, handoffs, missions: sorted.slice(0, 20).map(summary), pending: sorted.filter(mission => mission.status === 'WAITING_APPROVAL' || mission.status === 'WAITING_CLARIFICATION').map(summary), queued, tokens: sorted.reduce((sum, mission) => sum + mission.tokens_used, 0), stale: !!stale, active: latest?.status === 'RUNNING' && !stale, sync: 'local', now: new Date().toISOString() };
 }
 export async function readOffice() {
   const files = await readdir('data/missions').catch(() => [] as string[]);

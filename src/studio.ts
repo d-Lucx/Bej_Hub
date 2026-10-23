@@ -50,7 +50,9 @@ export class Studio {
     const plan = await this.provider.plan(goal, mission.source_text); this.count(mission, plan.tokens); mission.plan = plan.value;
     await this.event(mission, 'manager', 'HANDOFF', 'Researcher, gather evidence for this mission.', plan.value, 'researcher');
     await this.event(mission, 'researcher', 'WORKING', mission.mode === 'mock' ? 'Simulating research; no web requests or token charges.' : mission.source_text !== undefined ? 'Analyzing supplied text; Google Search is disabled.' : 'Searching for sources and preparing the brief.');
-    const research = await this.provider.research(`${plan.value.research_goal}\nUser request: ${goal}`, mission.source_text); this.count(mission, research.tokens); mission.brief = research.value;
+    // Research receives the manager's current task only. Reattaching the original
+    // premise here caused already-resolved conflicts to trigger another question.
+    const research = await this.provider.research(plan.value.research_goal, mission.source_text); this.count(mission, research.tokens); mission.brief = research.value;
     await this.messenger.send('researcher', research.value.text + '\n\nSources:\n' + this.sourceFooter(mission));
     if (research.value.alignment && research.value.alignment !== 'supported') {
       mission.status = 'WAITING_CLARIFICATION';

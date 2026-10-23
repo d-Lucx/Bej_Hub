@@ -1,14 +1,25 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
+import { BREAK_SPOTS, DESK_POSITIONS, findOfficePath, HandoffInbox, stepPath, type Point, type Handoff } from '../src/office-motion';
 
-export default function OfficeCanvas({ agents, selected, onSelect }: { agents: any[]; selected: string; onSelect: (id: string) => void }) {
+type Travel = { kind: 'handoff' | 'idle' | 'home'; path: Point[]; index: number; phase: 'out' | 'pause' | 'back'; until: number };
+type Actor = { sprite: Phaser.GameObjects.Container; bubble: Phaser.GameObjects.Text; ring: Phaser.GameObjects.Ellipse; limbs: Phaser.GameObjects.Graphics; paper: Phaser.GameObjects.Container; glow: Phaser.GameObjects.Rectangle; home: Point; motion?: Travel; wanderAt: number; visits: number; color: number };
+
+export default function OfficeCanvas({ agents, selected, onSelect, handoffs = [], ready = false, active = false, motionEnabled = true, preview = 0, onMotionStatus }: { agents: any[]; selected: string; onSelect: (id: string) => void; handoffs?: Handoff[]; ready?: boolean; active?: boolean; motionEnabled?: boolean; preview?: number; onMotionStatus?: (text: string) => void }) {
   const host = useRef<HTMLDivElement>(null); const scene = useRef<Phaser.Scene | null>(null);
-  const current = useRef({ agents, selected, onSelect }); current.current = { agents, selected, onSelect };
+  const current = useRef({ agents, selected, onSelect, handoffs, ready, active, motionEnabled, preview, onMotionStatus }); current.current = { agents, selected, onSelect, handoffs, ready, active, motionEnabled, preview, onMotionStatus };
   useEffect(() => {
     if (!host.current) return;
     class Office extends Phaser.Scene {
-      actors: Record<string, { sprite: Phaser.GameObjects.Container; bubble: Phaser.GameObjects.Text; ring: Phaser.GameObjects.Ellipse }> = {};
+      actors: Record<string, Actor> = {};
+      inbox = new HandoffInbox();
+      pending: Handoff[] = [];
+      activeHandoff?: Handoff;
+      lastEvents?: Handoff[];
+      lastPreview = 0;
+      motes: Phaser.GameObjects.Rectangle[] = [];
+      reduced = globalThis.matchMedia('(prefers-reduced-motion: reduce)');
       create() {
         scene.current = this;
         const g = this.add.graphics();
@@ -44,25 +55,97 @@ export default function OfficeCanvas({ agents, selected, onSelect }: { agents: a
           const ring = this.add.ellipse(x, 333, 65, 22, color, .24).setStrokeStyle(2, color);
           const actor = this.add.container(x, 304); const a = this.add.graphics();
           const ar = (xx: number, yy: number, w: number, h: number, c: number) => { a.fillStyle(c); a.fillRect(xx, yy, w, h); };
-          ar(-16,-29,32,21,0x514035); ar(-21,-20,42,14,0x514035); ar(-14,-15,28,25,0xedbb8e); ar(-16,-20,32,8,0x514035); ar(-9,-5,4,4,0x514035); ar(6,-5,4,4,0x514035); ar(-19,10,38,23,color); ar(-24,17,6,12,0xedbb8e); ar(19,17,6,12,0xedbb8e); ar(-5,10,10,8,0xf0dfbc); ar(-16,33,12,8,0x51473c); ar(4,33,12,8,0x51473c); actor.add(a);
+          ar(-16,-29,32,21,0x514035); ar(-21,-20,42,14,0x514035); ar(-14,-15,28,25,0xedbb8e); ar(-16,-20,32,8,0x514035); ar(-9,-5,4,4,0x514035); ar(6,-5,4,4,0x514035); ar(-19,10,38,23,color); ar(-5,10,10,8,0xf0dfbc); actor.add(a);
+          const limbs = this.add.graphics(); actor.add(limbs);
+          actor.setSize(50, 76).setInteractive({ useHandCursor: true }).on('pointerdown', () => current.current.onSelect(id));
+          const paper = this.add.container(x, 304).setVisible(false).setDepth(1200);
+          const envelope = this.add.graphics(); envelope.fillStyle(0xfff2cf); envelope.fillRect(-12,-9,24,18); envelope.lineStyle(2,0xb98c55); envelope.strokeRect(-12,-9,24,18); envelope.lineBetween(-12,-9,0,2); envelope.lineBetween(0,2,12,-9); paper.add(envelope);
+          const glow = this.add.rectangle(x, 224, 42, 28, 0xe2f4c2, .08);
           const bubble = this.add.text(x, 181, '', { fontFamily: 'monospace', fontSize: '18px', color: '#635642', backgroundColor: '#fff5dd', padding: { x: 12, y: 7 } }).setOrigin(.5);
           const label = this.add.text(x, 366, id === 'manager' ? 'BEJ MANAGER' : id === 'researcher' ? 'RESEARCH BOT' : 'WRITER BOT', { fontFamily: 'monospace', fontSize: '12px', color: '#654b3a', fontStyle: 'bold' }).setOrigin(.5);
           this.add.zone(x, 273, 172, 200).setInteractive({ useHandCursor: true }).on('pointerdown', () => current.current.onSelect(id));
-          this.actors[id] = { sprite: actor, bubble, ring };
+          this.actors[id] = { sprite: actor, bubble, ring, limbs, paper, glow, home: DESK_POSITIONS[id], wanderAt: this.time.now + 7000 + Object.keys(this.actors).length * 3500, visits: 0, color };
         };
         desk(235,'manager',0xbb764c); desk(480,'researcher',0x658e72); desk(725,'writer',0x7981af);
+        for (let i = 0; i < 9; i++) this.motes.push(this.add.rectangle(190 + i * 17, 150 + i * 23, 2, 2, 0xfff4cc, .35));
       }
-      update(time: number) {
-        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      startTrip(id: string, goal: Point, kind: Travel['kind'], time: number) {
+        const actor = this.actors[id];
+        const path = findOfficePath({ x: actor.sprite.x, y: actor.sprite.y + 40 }, goal);
+        if (!path.length) return false;
+        actor.motion = { kind, path, index: 0, phase: kind === 'home' ? 'back' : 'out', until: time };
+        return true;
+      }
+      update(time: number, delta: number) {
+        const reduced = this.reduced.matches || !current.current.motionEnabled;
+        if (this.lastEvents !== current.current.handoffs) {
+          const fresh = this.inbox.ingest(current.current.handoffs, current.current.ready);
+          if (!reduced) this.pending.push(...fresh);
+          this.lastEvents = current.current.handoffs;
+        }
+        if (this.lastPreview !== current.current.preview) {
+          this.lastPreview = current.current.preview;
+          if (!reduced) {
+            this.pending.push({ key: `preview-${time}-1`, mission_id: 'preview', agent_id: 'manager', target_agent: 'researcher', timestamp: new Date().toISOString() }, { key: `preview-${time}-2`, mission_id: 'preview', agent_id: 'researcher', target_agent: 'writer', timestamp: new Date().toISOString() });
+          } else current.current.onMotionStatus?.('Motion preview is paused by your motion preference.');
+        }
+        this.pending = this.pending.slice(-8);
+        if (reduced) {
+          this.pending = [];
+          if (this.activeHandoff) { this.activeHandoff = undefined; current.current.onMotionStatus?.(''); }
+        } else if (!this.activeHandoff && this.pending.length) {
+          const event = this.pending.shift()!; const sender = this.actors[event.agent_id]; const receiver = this.actors[event.target_agent];
+          if (sender && receiver && event.agent_id !== event.target_agent) {
+            if (receiver.motion?.kind === 'idle') this.startTrip(event.target_agent, receiver.home, 'home', time);
+            const destination = { x: receiver.home.x + (sender.sprite.x < receiver.home.x ? -48 : 48), y: receiver.home.y };
+            if (this.startTrip(event.agent_id, destination, 'handoff', time)) {
+              this.activeHandoff = event;
+              current.current.onMotionStatus?.(`${event.mission_id === 'preview' ? 'Motion preview · ' : ''}${event.agent_id === 'manager' ? 'Manager' : 'Researcher'} → ${event.target_agent === 'researcher' ? 'Researcher' : 'Writer'} · walking handoff`);
+            }
+          }
+        }
         for (const agent of current.current.agents) {
           const actor = this.actors[agent.id]; if (!actor) continue;
+          if (reduced) { actor.motion = undefined; actor.sprite.setPosition(actor.home.x, actor.home.y - 40); }
+          else if (actor.motion?.kind === 'idle' && (agent.state !== 'IDLE' || current.current.active)) this.startTrip(agent.id, actor.home, 'home', time);
+          if (!reduced && !actor.motion && agent.state === 'IDLE' && !current.current.active && !this.activeHandoff && !this.pending.length && time >= actor.wanderAt) {
+            this.startTrip(agent.id, BREAK_SPOTS[(actor.visits++ + Object.keys(this.actors).indexOf(agent.id)) % BREAK_SPOTS.length], 'idle', time);
+          }
+          const trip = actor.motion;
+          if (trip && trip.phase !== 'pause') {
+            const step = stepPath({ x: actor.sprite.x, y: actor.sprite.y + 40 }, trip.path, trip.index, Math.min(delta, 60) * (trip.kind === 'handoff' ? 125 : 65) / 1000);
+            actor.sprite.setPosition(step.point.x, step.point.y - 40); trip.index = step.index;
+            if (step.done) {
+              if (trip.phase === 'out') { trip.phase = 'pause'; trip.until = time + (trip.kind === 'handoff' ? 650 : 2800); }
+              else {
+                actor.sprite.setPosition(actor.home.x, actor.home.y - 40); actor.motion = undefined; actor.wanderAt = time + 14000 + Object.keys(this.actors).indexOf(agent.id) * 2500;
+                if (trip.kind === 'handoff') { this.activeHandoff = undefined; if (!this.pending.length) current.current.onMotionStatus?.(''); }
+              }
+            }
+          } else if (trip && time >= trip.until) {
+            trip.path = findOfficePath({ x: actor.sprite.x, y: actor.sprite.y + 40 }, actor.home); trip.index = 0; trip.phase = 'back';
+          }
+          actor.sprite.setDepth(100 + actor.sprite.y);
+          actor.ring.setPosition(actor.sprite.x, actor.sprite.y + 33).setDepth(99 + actor.sprite.y);
           actor.ring.setVisible(current.current.selected === agent.id);
           const active = agent.state !== 'IDLE';
-          actor.sprite.y = 304 + (reduced ? 0 : Math.sin(time / (active ? 170 : 650)) * (active ? 2 : .6));
-          actor.bubble.setText(agent.state === 'THINKING' ? '…' : agent.state === 'WORKING' ? '>_' : agent.state === 'HANDOFF' ? '↗' : agent.state === 'BLOCKED' ? '!' : agent.state.startsWith('WAITING_') ? '?' : 'z z');
+          const moving = !!actor.motion && actor.motion.phase !== 'pause';
+          const stride = !reduced && moving ? Math.sin(time / 85) * 4 : 0;
+          const typing = !reduced && agent.state === 'WORKING' && !moving ? Math.sin(time / 65) * 2 : 0;
+          actor.limbs.clear().fillStyle(0x51473c); actor.limbs.fillRect(-16,33 + stride,12,8); actor.limbs.fillRect(4,33 - stride,12,8);
+          actor.limbs.fillStyle(0xedbb8e); actor.limbs.fillRect(-24,17 - stride + typing,6,12); actor.limbs.fillRect(19,17 + stride - typing,6,12);
+          const coffee = actor.motion?.kind === 'idle' && actor.motion.phase === 'pause';
+          if (coffee) { actor.limbs.fillStyle(0xffedc7); actor.limbs.fillRect(15,8,10,12); actor.limbs.fillRect(25,10,4,6); }
+          actor.bubble.setPosition(actor.sprite.x, actor.sprite.y - 95).setDepth(1250);
+          actor.paper.setPosition(actor.sprite.x + 27, actor.sprite.y + 3).setVisible(actor.motion?.kind === 'handoff' && actor.motion.phase !== 'back');
+          actor.glow.setAlpha(!reduced && agent.state === 'WORKING' ? .15 + Math.sin(time / 190) * .08 : .04);
+          const thinking = reduced ? '…' : '.'.repeat(1 + Math.floor(time / 400) % 3);
+          actor.bubble.setText(actor.motion?.kind === 'handoff' ? '↗' : coffee ? 'coffee' : moving ? '♪' : agent.state === 'THINKING' ? thinking : agent.state === 'WORKING' ? '>_' : agent.state === 'HANDOFF' ? '↗' : agent.state === 'BLOCKED' ? '!' : agent.state.startsWith('WAITING_') ? '?' : 'z z');
           actor.bubble.setColor(agent.state === 'BLOCKED' ? '#a64837' : '#635642');
-          actor.bubble.setAlpha(active ? 1 : .65);
+          actor.bubble.setAlpha(active || moving ? 1 : .65);
+          if (!reduced && (agent.state === 'BLOCKED' || agent.state.startsWith('WAITING_'))) actor.bubble.y += Math.sin(time / 230) * 3;
         }
+        this.motes.forEach((mote, i) => { mote.setPosition(190 + i * 17 + (reduced ? 0 : Math.sin(time / 1900 + i) * 10), 150 + i * 23 + (reduced ? 0 : Math.sin(time / 2700 + i) * 14)); });
       }
     }
     const game = new Phaser.Game({ type: Phaser.CANVAS, parent: host.current, width: 960, height: 560, backgroundColor: '#e9e0ca', pixelArt: true, antialias: false, banner: false, scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: Office, audio: { noAudio: true } });
