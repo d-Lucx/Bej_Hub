@@ -1,109 +1,181 @@
-# Bej Hub · Local virtual studio
+# Bej Hub
 
-## Human review and clarification
+A cozy pixel studio for an AI team. Assign a mission from Discord or the local office, follow the Manager → Researcher → Writer workflow, and review the draft before delivery.
 
-The Discord bot now requires human approval before final draft delivery. It saves a **WAITING_APPROVAL** mission and posts a review preview with **Approve & deliver** and **Reject** buttons. Approval uses the saved draft, without another AI call. The private office is the delivery destination; nothing is published outside it.
+Built with TypeScript, Discord.js, Gemini, Next.js, React, and Phaser. Supabase provides an optional private mirror of mission records. The current app runs on your computer.
 
-When supplied references contradict the requested premise, or lack essential evidence, Researcher returns a structured mismatch and the mission enters **WAITING_CLARIFICATION** before Writer runs. Use **Clarify** on its Discord card or answer in the office review panel. Clarification repeats planning/research on the same mission with your correction and can consume additional quota. Optional missing tone/audience preferences do not by themselves require clarification. This classification is model-assisted, so review remains useful even when no conflict is detected.
+## What works today
 
-Paused missions survive bot restarts and release the office for other missions. The **A human touch** panel lists pending work, including missions outside the latest 20 history entries. Approval/rejection actions check the current saved state and hold a per-mission lock, so duplicate or stale actions cannot intentionally deliver a completed draft again. A crash during **DELIVERING** requires manual review; delivery is never automatically replayed.
+- Three agent personas share one Discord webhook, with progress messages and structured handoffs.
+- A pixel office shows agent states, mission history, a journal, token totals, and bot connectivity.
+- Missions accept reference text. Researcher analyzes it without Google Search and cites it as `[S1]`.
+- Conflicting premises or missing essential evidence pause the mission for clarification before Writer runs.
+- Draft review is available through Discord buttons and the office. Approval delivers the saved draft; rejection ends the mission.
+- A persistent local queue supports cancellation before work starts. Failed missions can be reviewed and resubmitted.
+- Mock mode exercises the workflow without an AI key or token usage.
 
-Restart the bot and run `bej.cmd register` to add `/approve mission_id:...`, `/reject mission_id:...`, and `/clarify mission_id:... response:...`. Use the full mission ID shown on the review card. The same server/channel/user allowlist applies to all commands, buttons, and clarification forms. Only local CLI demos/live-test runs bypass final approval; they print output locally.
+Walking handoffs, richer avatar animations, and a hosted office with authenticated Supabase Realtime are planned.
 
-If Discord cannot deliver a review card, the mission remains pending and can be handled from the office. Rejection retains the record and draft for inspection and prevents final delivery. Web review responses are queued for the bot; keep `bej.cmd start` running.
+## Quick start
 
-## Repository
+### First-time setup
 
-Source: https://github.com/d-Lucx/Bej_Hub. `.env`, local mission/queue data, dependencies, and build output are excluded. GitHub Actions runs TypeScript checks and offline tests without service credentials. Before a push, run `node node_modules/tsx/dist/cli.mjs src/audit-staged.ts` to check staged files for configured secrets and private/generated paths. The audit is a targeted check, not a general-purpose secret scanner.
+Install Node.js **22.12+** and pnpm. In Windows Command Prompt:
 
-## Phase 2 local cozy office
-
-Run `bej.cmd office` in a second terminal, then visit http://127.0.0.1:3000. Restart `bej.cmd start` in the bot terminal after this update to activate the web mission queue. Keep both running: the office reads saved mission events every 1.5 seconds, and the bot processes queued web missions sequentially. Sending a web mission uses the same configured provider and posts the agent updates to your private Discord office.
-
-Click a pixel teammate or their inspector button to view status. New mission accepts a prompt and supplied reference text. Studio journal follows the latest mission; Mission history expands saved drafts. Token totals are from local mission history, not a billing meter. This release includes original Phaser pixel artwork and state bubbles, not walking/pathfinding yet. Old interrupted records are shown as stale after 15 minutes. Queue requests expire after one hour; interrupted RUNNING requests are not automatically replayed.
-
-The local API is limited to loopback hosts on port 3000; submissions require a matching Origin. This is a local single-user preview, not a production authentication system. Do not expose it through a public tunnel or deploy it as-is. See `supabase/SETUP.md` for the optional private mirror and the remaining hosted Auth/Realtime work.
-
-The office now shows bot liveness separately from website connectivity. Restart the bot to enable its heartbeat; status becomes offline after 15 seconds without an update. Mission queue includes a Cancel button only for queued work. Once a mission starts it finishes normally. Failed missions offer **Review & retry** in Mission history: review/edit the prefilled prompt and sources, then submit a new mission explicitly. Earlier messages may already be in Discord; retries can use more AI quota. New missions preserve sources before the manager starts. Old missions that failed before research may require sources to be pasted again.
-
-Queue start and cancellation share a short-lived per-record lock to prevent both from winning. A process forcibly killed during a file update can leave a `.lock` file; the queue will leave that record alone rather than risk a duplicate run. Interrupted RUNNING requests also require manual review and are not replayed automatically.
-
-A Discord virtual studio: Manager → Researcher → Writer. The team produces a brief and draft post in your private office. TypeScript, Discord.js, Gemini, and a local Next.js/Phaser office; Supabase mirroring is optional.
-
-## Try it without accounts
-
-Use Node.js 22.12+ and pnpm (or npm):
-
-```powershell
-pnpm install
-pnpm demo
-pnpm check
-pnpm test
+```cmd
+git clone https://github.com/d-Lucx/Bej_Hub.git
+cd Bej_Hub
+pnpm install --frozen-lockfile
+if not exist .env copy .env.example .env
 ```
 
-The demo always uses mock mode, prints each persona's messages, saves a mission JSON file under `data/missions`, and uses zero AI tokens. Mock output is labeled and is not research. If using npm instead, use `npm install` and `npm run demo`, etc.
+Edit `.env` with your Discord configuration. Start with `AI_MODE=mock`. See [Discord setup](#discord-setup) below.
 
-On this machine dependencies are already installed. Since npm/pnpm are not on PATH, you can use `./bej.ps1 demo`, `./bej.ps1 check`, `./bej.ps1 test`, `./bej.ps1 register`, and `./bej.ps1 start` from PowerShell instead of the pnpm commands below.
+The Windows launchers use Node from PATH and can also find this computer's bundled Codex Node runtime. In PowerShell, prefix launcher commands with `./`, for example `./bej.cmd start`.
 
-In Windows Command Prompt, use `bej.cmd register` and then `bej.cmd start`. The `bej.cmd` launcher also supports `demo`, `check`, and `test`, and finds the bundled Node runtime if Node is not on PATH. In PowerShell, use `./bej.cmd register` and `./bej.cmd start`.
+### Daily use
 
-## Create the Discord bot in your existing server
+Register commands once during setup, and again when command definitions change:
 
-1. Open https://discord.com/developers/applications and create an application named **Bej Hub**. Copy its Application ID from General Information.
-2. Open **Bot**, create the bot if needed, and reset/copy its token. Keep the token only in your local `.env`; do not paste it into chat. You do not need Message Content or other privileged intents.
-3. Under **OAuth2 → URL Generator**, select `bot` and `applications.commands`. Select only View Channels and Send Messages. Open the generated installation link and choose your server. Do not grant Administrator.
-4. Create a text channel named **agent-office**. Make it private: deny View Channel to `@everyone`; allow yourself and Bej Hub to view and send messages. Check that no other roles grant unwanted access.
-5. In that channel's **Edit Channel → Integrations → Webhooks**, create one webhook named Bej Hub and copy its URL. It must target this same channel. The code uses it with three different display names. Optional HTTPS avatar URLs give each persona a different image; no custom sprite artwork is bundled yet.
-6. In Discord **User Settings → Advanced**, enable Developer Mode. Right-click your server, the office channel, and your user profile to copy their IDs.
-7. Copy `.env.example` to `.env`, then fill in the bot token, application ID, server ID, channel ID, webhook URL, and your user ID in `DISCORD_ALLOWED_USER_IDS`. Keep `AI_MODE=mock` initially.
-8. Run `pnpm register` once to install `/mission` and `/status` in your server. Run `pnpm start` and leave the terminal running.
-9. In `#agent-office`, try `/mission prompt: Research how a virtual studio helps solo creators and draft a welcome post`. You should see all three personas and a clearly labeled mock draft. `/status` shows activity and session token usage.
+```cmd
+bej.cmd register
+```
 
-This project does not create a server, bot, webhook, or channel automatically. Registration changes Discord only when you run it with your credentials. Commands are restricted to the configured server, channel, and allowed user IDs. Webhook output disables mentions, including `@everyone`.
+Open two terminals in the project directory:
 
-## Enable real Gemini research
+| Terminal | Command | Purpose |
+| --- | --- | --- |
+| 1 | `bej.cmd start` | Runs the Discord bot and processes office requests |
+| 2 | `bej.cmd office` | Serves the local website |
 
-### Supplied-source mode (current default)
+Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)**. Keep both terminals open. After a code or `.env` change, stop the bot with **Ctrl+C** and start it again.
 
-Set `RESEARCH_MODE=supplied` in `.env`. Run `bej.cmd register` again to add the new `sources` option, then restart with `bej.cmd start`. With `AI_MODE=gemini`, the full Manager → Researcher → Writer workflow uses Gemini generation without Google Search grounding.
+For an account-free terminal demonstration, run `bej.cmd demo`. It always uses mock mode and saves a local mission record. Terminal demos and `live-test` print drafts locally and bypass final approval; use Discord or the office to test the review controls.
 
-Example Discord command:
+## Discord setup
+
+1. Create an application named **Bej Hub** in the [Discord Developer Portal](https://discord.com/developers/applications). Copy the Application ID and bot token into `.env`.
+2. Install it in your server with the `bot` and `applications.commands` scopes. Grant **View Channels**, **Send Messages**, and **Embed Links** for review cards. Privileged gateway intents are unnecessary.
+3. Create a private `#agent-office` text channel. Allow yourself and the bot to view and send messages there.
+4. In that channel's **Integrations → Webhooks**, create one webhook and copy its URL into `.env`. It must target the configured channel.
+5. Enable Discord Developer Mode, then copy your server ID, channel ID, and user ID. Add your user ID to `DISCORD_ALLOWED_USER_IDS`.
+6. Run `bej.cmd register`, then `bej.cmd start`.
+
+All commands, buttons, and clarification forms enforce the configured server, channel, and user allowlist. Optional avatar URLs customize the three webhook personas. Webhook output disables mentions.
+
+| Command | Action |
+| --- | --- |
+| `/mission prompt:… sources:…` | Starts the research and writing workflow |
+| `/status` | Shows bot activity, AI mode, and session token usage |
+| `/clarify mission_id:… response:…` | Resumes a mission with your clarification |
+| `/approve mission_id:…` | Delivers a saved draft to the private office |
+| `/reject mission_id:…` | Ends a paused mission without final delivery |
+
+Use the **full mission ID** from the review card for review commands. Buttons fill in the ID automatically.
+
+## Gemini and source handling
+
+Set these values in `.env` to enable live generation:
+
+```env
+AI_MODE=gemini
+RESEARCH_MODE=supplied
+GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_API_KEY=your_api_key
+```
+
+Create a key in [Google AI Studio](https://aistudio.google.com/apikey). Keep real keys in `.env`.
+
+**Supplied-source mode is the default.** Paste reference content into `sources`; URLs alone are not fetched. A mission accepts up to **2,000 prompt characters** and **6,000 source characters**. The reference is sent to Gemini and saved in the local mission record. `[S1]` identifies supplied material, not independently verified web research.
+
+`RESEARCH_MODE=google_search` enables Gemini Search grounding when no source text is supplied. Supplying `sources` always selects supplied-source analysis. Grounding requires model/tool access and available quota; the workflow stops if it receives no grounded citations. Live generation and Search availability depend on your account.
+
+## Clarification and approval test
+
+Restart the bot after updating the code. Use **New mission** in the office, or enter `/mission` in Discord and fill its two fields.
+
+**Prompt**
 
 ```text
-/mission prompt: Write a welcome post for Bej Hub
-         sources: Bej Hub is a virtual studio with a Manager, Researcher, and Writer. Missions are submitted in a private Discord office. The 2D office is planned; there is no launch date yet.
+Write a 100-word introduction to Sinag Filipino as a film festival. Explain its history and how it supports independent Filipino filmmakers.
 ```
 
-Paste reference content (up to 6000 characters), not just a URL: links are not fetched. Researcher analyzes only that material and uses `[S1]` citations. Both outputs are labeled as supplied-source work, not independently verified web research. The reference text is saved in the private local mission record and sent to Gemini for analysis. Missing reference text is rejected before any AI call in this mode.
+**Source text**
 
-`bej.cmd live-test` now uses a small supplied project-notes fixture by default, running the complete workflow locally without Discord delivery. Set `RESEARCH_MODE=google_search` explicitly to use the previous grounded live test and source-search behavior. Supplying the `sources` option always selects supplied-source analysis, even when the configured default is Google Search.
+```text
+Test scenario: Sinag Filipino is a proposed educational mobile application by LikhaTech Solutions. It helps Filipino children develop foundational reading and language skills through letter recognition, phonics, vocabulary practice, and short reading exercises. The app is designed for learners who need support with basic literacy. It is not a film festival and does not organize screenings or support independent filmmaking. These notes contain no film festival history or filmmaker programs.
+```
 
-Run `bej.cmd live-test` to verify a real research → draft workflow locally using the key and model in `.env`. This consumes API quota but sends no Discord messages, and works even while `AI_MODE=mock`. After a successful test, set `AI_MODE=gemini` and restart the bot. The selected default is `gemini-3.5-flash-lite`.
+**Expected result:** Researcher flags the conflict and the mission enters `WAITING_CLARIFICATION`. Writer should not generate a draft yet.
 
-Create an API key at https://aistudio.google.com/apikey, set `GEMINI_API_KEY` locally, set `AI_MODE=gemini`, and restart. `GEMINI_MODEL` is configurable; the initial setting is `gemini-3.5-flash-lite`. Verify that the selected model and Google Search grounding are available for your account before using live mode. Free quotas and grounding availability vary; this project does not guarantee zero-cost live execution.
+Click **Clarify** in Discord or answer in the office review card:
 
-The manager returns a validated JSON plan. The researcher calls Google Search grounding and refuses to proceed without source chunks and citation support metadata. The writer returns a validated JSON title/body based on the brief. Source URLs accompany both outputs; complete grounding metadata is retained in the mission record. Sources are evidence, not a guarantee that every claim is correct: the final message is explicitly a draft.
+```text
+Focus on the educational reading app described in the source. Write a friendly 100-word introduction for parents explaining how it could help children build basic literacy. Leave out film festivals and filmmaking.
+```
 
-Transient Gemini HTTP 429 and 5xx failures retry up to twice with backoff, respecting Google's RetryInfo and Retry-After delays. Delays over 60 seconds and explicit daily/zero quotas stop automatic retries. Errors now include Google's reason and quota identifiers, with the API key redacted. Requests time out after 90 seconds. Invalid output or missing citations fails the mission. No silent substitution with mock output occurs in live mode. Cross-provider fallback is deferred until you choose and configure a second provider.
+The team should recheck the same source and produce a draft in `WAITING_APPROVAL`. Review the text, then click **Approve & deliver** or **Reject**. Approval sends the saved draft to the private Discord office without another AI call. A stale or repeated approval is rejected.
 
-## Phase 1 boundaries
+Conflict detection is model-assisted and can make mistakes. This test exercises a clear contradiction; optional missing tone or audience preferences alone should not trigger clarification. Resuming after clarification can use additional AI quota.
 
-- One mission runs at a time. Additional requests receive a busy response; there is no persistent queue yet.
-- Mission snapshots and structured state events are stored locally. Restarting the process does not resume interrupted work. Token counters are session-only and count usage returned by successful provider steps, not billing totals or failed-call usage.
-- Delivery failure marks the mission failed. Earlier messages may already have arrived; there is no automatic workflow replay that could duplicate a complete post.
-- Drafts and progress are automatically posted only to your office webhook. No publishing outside the office, code execution, browser automation, or approval commands are included in this phase.
-- Persona avatars are optional URLs. Pixel art, walking animations, the Next.js/Phaser room, and Supabase remain future phases.
-- Keep the local process and computer awake for testing. Render free web services sleep after idle time and are unsuitable for a reliable always-on Gateway bot. Choose hosting before deploying; no deployment has been performed.
+## Mission controls and persistence
 
-## Project map
+| State | What happens next |
+| --- | --- |
+| `RUNNING` | The team is planning, researching, or writing |
+| `WAITING_CLARIFICATION` | A human clarifies the request or rejects the mission |
+| `WAITING_APPROVAL` | A human reviews the draft and approves or rejects it |
+| `DELIVERING` | The approved draft is being sent to Discord |
+| `COMPLETED` / `REJECTED` | The mission has ended |
+| `FAILED` | Inspect the error, then use **Review & retry** if appropriate |
 
-- `src/studio.ts`: deterministic orchestration, handoffs, logs, and single-mission guard.
-- `src/providers.ts`: mock and Gemini adapters; JSON validation and grounded research.
-- `src/bot.ts`, `src/discord.ts`: commands, access checks, shared webhook personas.
-- `src/register.ts`: registers commands without deleting other commands.
-- `data/missions/`: private local prompts, research, drafts, events, and usage; excluded from Git.
-- `tests/studio.test.ts`: workflow, persistence, concurrency, failure, access, chunking, and provider validation checks.
+Paused missions survive bot restarts and free the office for other work. Office submissions wait in the local queue; Discord submissions receive a busy response while a mission is running. Queued work can be cancelled before it starts and expires after one hour. Running work finishes normally.
 
-Next checkpoint: create the Discord application and configure `.env`, run the mock mission in the channel, then validate one narrow Gemini mission before Phase 2.
+The website refreshes local records every 1.5 seconds. Bot status expires after 15 seconds without a heartbeat. Restart the bot if the office reports that it needs a restart. A connected website alone does not mean the bot is online.
 
-References: [Discord commands](https://docs.discord.com/developers/docs/interactions/slash-commands), [Discord.js guide](https://discordjs.guide/), [Gemini grounding](https://ai.google.dev/gemini-api/docs/google-search), [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output), [Render free-service limits](https://render.com/docs/free).
+Active work interrupted by a crash is not automatically replayed. A crash during delivery, or a leftover queue/review lock, needs manual inspection to avoid duplicate actions. **Review & retry** creates a new workflow; earlier Discord messages may already have been sent.
+
+Office token totals cover recorded local missions. `/status` reports the current bot session. Neither is a billing meter; failed-call usage may be missing.
+
+## Optional Supabase mirror
+
+Follow [supabase/SETUP.md](supabase/SETUP.md), run [supabase/schema.sql](supabase/schema.sql) in your project's SQL Editor, and configure the server-only URL and secret key in `.env`.
+
+```cmd
+bej.cmd supabase-check
+bej.cmd supabase-sync-check
+```
+
+The first command checks table access. The second mirrors an existing completed mock mission, reads it back, and checks for duplicate events. It leaves that mock record in Supabase.
+
+Restart the bot to mirror local records every five seconds. Records include prompts, supplied references, progress events, and drafts. The local office continues to read local files; authenticated cloud access and Realtime subscriptions are future work.
+
+## Development commands
+
+| Command | Purpose |
+| --- | --- |
+| `bej.cmd demo` | Offline terminal demonstration with zero AI usage |
+| `bej.cmd live-test` | Live local Gemini workflow; consumes quota, sends nothing to Discord |
+| `bej.cmd check` | Checks the bot and shared TypeScript code |
+| `bej.cmd test` | Runs all offline tests |
+| `pnpm exec tsc --project tsconfig.web.json --noEmit` | Checks web TypeScript code |
+| `pnpm exec tsx src/audit-staged.ts` | Checks staged files against configured secrets and common credential patterns |
+
+GitHub Actions runs both TypeScript checks and the offline tests without service credentials. The staged audit is a targeted check, not a comprehensive secret scanner.
+
+## Project layout
+
+| Path | Contents |
+| --- | --- |
+| `app/` | Next.js office, Phaser room, mission and review endpoints |
+| `src/studio.ts` | Workflow, saved state, clarification, approval, and delivery |
+| `src/providers.ts` | Mock/Gemini adapters, structured output, and source analysis |
+| `src/bot.ts`, `src/discord*.ts` | Discord commands, personas, and review cards |
+| `src/queue-store.ts`, `src/web-queue.ts` | Persistent queue and cancellation controls |
+| `src/supabase*.ts`, `supabase/` | Optional database mirror and setup |
+| `tests/` | Offline workflow, permissions, concurrency, and review tests |
+| `data/` | Private runtime records; ignored by Git |
+
+`.gitignore` excludes credentials, runtime data, dependencies, builds, caches, logs, reports, backups, and OS/editor metadata. Source, tests, SQL, `.env.example`, `pnpm-lock.yaml`, and `AGENTS.md` stay versioned so the project can be reproduced and maintained.
+
+The office currently binds to loopback on port 3000 and uses local access checks. Hosted use requires authentication and per-user authorization before deployment. Keep the bot and computer running while using the local studio.

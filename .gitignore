@@ -1,9 +1,56 @@
-node_modules/
-.env
-.env.*
+# Credentials and local environment (keep the documented template)
+.env*
 !.env.example
-data/
-*.log
+.git-credentials
+.netrc
+.npmrc.local
+/secrets/
+/credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Private mission records, queue, diagnostics, and bot status
+/data/
+
+# Installed dependencies and package caches (commit pnpm-lock.yaml)
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/cache/
+
+# Build output and generated types
 .next/
+/out/
+/dist/
+/build/
+.vercel/
+.turbo/
 next-env.d.ts
 *.tsbuildinfo
+
+# Logs, test output, and local preview artifacts
+*.log
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+/artifacts/
+
+# Temporary files and editor/OS metadata
+/tmp/
+/temp/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
