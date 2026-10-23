@@ -1,4 +1,6 @@
-# Bej Hub
+# Bej Hub v1.0
+
+**Local studio release · v1.0.0** · [Release notes](CHANGELOG.md) · [Versioned source](https://github.com/d-Lucx/Bej_Hub/tree/v1.0.0)
 
 A cozy pixel studio for an AI team. Assign a mission from Discord or the local office, follow the Manager → Researcher → Writer workflow, and review the draft before delivery.
 
@@ -14,13 +16,13 @@ Built with TypeScript, Discord.js, Gemini, Next.js, React, and Phaser. Supabase 
 - A persistent local queue supports cancellation before work starts. Failed missions can be reviewed and resubmitted.
 - Mock mode exercises the workflow without an AI key or token usage.
 
-The local MVP is in **Phase 3: walking handoffs and human review**. A hosted office with authenticated Supabase Realtime is still planned.
+**Phase 3 is complete for the local MVP**, released as v1.0.0. A hosted office with authenticated Supabase Realtime is still planned.
 
 | Original phase | Current status |
 | --- | --- |
 | 1 · Discord workflow | Working: Manager, Researcher, Writer, and shared-webhook personas |
 | 2 · State and office | Local Phaser office and Supabase database mirroring work; the UI currently polls local records |
-| 3 · Walking and human review | Walking handoffs, idle motion, clarification, and approval controls are implemented locally |
+| 3 · Walking and human review | Complete locally: walking handoffs, idle motion, clarification, approval, and pixel identity |
 
 Hosted Realtime subscriptions, cloud authentication, and deployment remain separate follow-up work because the current priority is local use.
 
@@ -77,7 +79,19 @@ Live walking follows newly observed handoff events. Opening the office does not 
 5. Enable Discord Developer Mode, then copy your server ID, channel ID, and user ID. Add your user ID to `DISCORD_ALLOWED_USER_IDS`.
 6. Run `bej.cmd register`, then `bej.cmd start`.
 
-All commands, buttons, and clarification forms enforce the configured server, channel, and user allowlist. Optional avatar URLs customize the three webhook personas. Webhook output disables mentions.
+All commands, buttons, and clarification forms enforce the configured server, channel, and user allowlist. Webhook output disables mentions.
+
+### Pixel avatars and favicon
+
+| Bej Manager | Research Bot | Writer Bot |
+| --- | --- | --- |
+| <img src="public/avatars/manager.png" width="112" alt="Copper pixel manager with clipboard" /> | <img src="public/avatars/researcher.png" width="112" alt="Sage pixel researcher with glasses and magnifier" /> | <img src="public/avatars/writer.png" width="112" alt="Lavender pixel writer with pencil and notes" /> |
+
+Agent messages automatically use these 512px PNG avatars from the versioned GitHub source. Keep the three `*_AVATAR_URL` values blank to use the release defaults, or supply your own HTTPS URLs. Restart the bot after changing avatar settings. Existing webhook messages retain the avatars used when they were sent.
+
+`bej.cmd brand-discord` applies the matching studio mark to the main bot account and the office webhook's default profile. It validates the configured identities first, then updates their avatars without posting messages. Run it once during setup; new persona messages continue to use their individual avatars.
+
+The website includes `app/favicon.ico` (16/32/48px), `app/icon.svg`, and a 180px touch icon. Original SVG sources and PNGs are committed under `public/`; regenerate them with `pnpm assets` or `node scripts/build-brand-assets.mjs`. No image-generation service or extra build dependency is required.
 
 | Command | Action |
 | --- | --- |
@@ -176,6 +190,8 @@ Restart the bot to mirror local records every five seconds. Records include prom
 | `bej.cmd live-test` | Live local Gemini workflow; consumes quota, sends nothing to Discord |
 | `bej.cmd check` | Checks the bot and shared TypeScript code |
 | `bej.cmd test` | Runs all offline tests |
+| `bej.cmd brand-discord` | Applies the studio mark to the main bot and webhook profiles |
+| `pnpm assets` | Rebuilds favicon, touch icon, and avatar files |
 | `pnpm exec tsc --project tsconfig.web.json --noEmit` | Checks web TypeScript code |
 | `pnpm exec tsx src/audit-staged.ts` | Checks staged files against configured secrets and common credential patterns |
 
@@ -191,6 +207,8 @@ GitHub Actions runs both TypeScript checks and the offline tests without service
 | `src/bot.ts`, `src/discord*.ts` | Discord commands, personas, and review cards |
 | `src/queue-store.ts`, `src/web-queue.ts` | Persistent queue and cancellation controls |
 | `src/office-motion.ts` | Furniture-aware A* paths, movement, and handoff-event deduplication |
+| `public/avatars/`, `public/brand/` | Original pixel identity assets and Discord-ready images |
+| `scripts/build-brand-assets.mjs` | Reproducible, dependency-free SVG/PNG/ICO asset builder |
 | `src/supabase*.ts`, `supabase/` | Optional database mirror and setup |
 | `tests/` | Offline workflow, permissions, concurrency, and review tests |
 | `data/` | Private runtime records; ignored by Git |

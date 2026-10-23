@@ -1,9 +1,11 @@
 'use client';
 import { useState } from 'react';
+import { APP_VERSION } from '../src/version';
 
 export function BotBanner({ office, connected }: { office: any; connected: boolean }) {
   if (!office || !connected) return null;
-  return <div className={`bot-banner ${office.bot?.online ? 'ready' : ''}`} role="status"><span><b>{office.bot?.online ? 'Bot is ready' : 'Bot is offline or needs a restart'}</b><small>{office.bot?.online ? `${office.bot.mode === 'mock' ? 'Mock mode · no AI calls' : `${office.bot.model} · live AI`} · ${office.bot.activeMission ? 'A mission is running' : 'Ready for your next mission'}` : 'Run bej.cmd start in a separate terminal. Queued work waits until the bot connects.'}</small></span><span className="bot-pill">{office.bot?.online ? '● Online' : '○ Offline'}</span></div>;
+  const outdated = office.bot?.online && office.bot.version !== APP_VERSION;
+  return <div className={`bot-banner ${office.bot?.online && !outdated ? 'ready' : ''}`} role="status"><span><b>{outdated ? `Restart the bot to load v${APP_VERSION}` : office.bot?.online ? 'Bot is ready' : 'Bot is offline or needs a restart'}</b><small>{outdated ? 'Stop the bot terminal with Ctrl+C, then run bej.cmd start to load the release and pixel avatars.' : office.bot?.online ? `v${office.bot.version} · ${office.bot.mode === 'mock' ? 'Mock mode · no AI calls' : `${office.bot.model} · live AI`} · ${office.bot.activeMission ? 'A mission is running' : 'Ready for your next mission'}` : 'Run bej.cmd start in a separate terminal. Queued work waits until the bot connects.'}</small></span><span className="bot-pill">{office.bot?.online ? '● Online' : '○ Offline'}</span></div>;
 }
 export function QueuePanel({ items, onNotice }: { items: any[]; onNotice: (value: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);

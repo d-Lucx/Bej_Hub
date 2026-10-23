@@ -7,6 +7,7 @@ import { startWebQueue } from './web-queue.js';
 import { startSupabaseSync } from './supabase-sync.js';
 import { startBotStatus } from './bot-status.js';
 import { reviewMessage } from './discord-review.js';
+import { APP_VERSION } from './version.js';
 
 async function main() {
   const settings = config();
@@ -25,10 +26,10 @@ async function main() {
   const webhook = await webhookResponse.json() as { channel_id?: string; guild_id?: string };
   if (webhook.channel_id !== settings.DISCORD_CHANNEL_ID || webhook.guild_id !== settings.DISCORD_GUILD_ID) throw new Error('Webhook must belong to the configured office channel and server.');
   client.once(Events.ClientReady, ready => {
-    console.log(`Bej Hub connected as ${ready.user.tag} (${settings.AI_MODE}).`);
+    console.log(`Bej Hub v${APP_VERSION} connected as ${ready.user.tag} (${settings.AI_MODE}).`);
     startWebQueue(studio);
     startSupabaseSync();
-    startBotStatus(() => ({ online: client.isReady(), mode: settings.AI_MODE, model: settings.GEMINI_MODEL, researchMode: settings.RESEARCH_MODE, activeMission: studio.active?.id }));
+    startBotStatus(() => ({ online: client.isReady(), version: APP_VERSION, mode: settings.AI_MODE, model: settings.GEMINI_MODEL, researchMode: settings.RESEARCH_MODE, activeMission: studio.active?.id }));
   });
   client.on(Events.Error, () => console.error('Discord connection error. Check connectivity.'));
   client.on(Events.InteractionCreate, async interaction => {

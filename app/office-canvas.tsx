@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { BREAK_SPOTS, DESK_POSITIONS, findOfficePath, HandoffInbox, stepPath, type Point, type Handoff } from '../src/office-motion';
 
 type Travel = { kind: 'handoff' | 'idle' | 'home'; path: Point[]; index: number; phase: 'out' | 'pause' | 'back'; until: number };

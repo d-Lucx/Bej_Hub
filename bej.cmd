@@ -15,7 +15,8 @@ if /i "%BEJ_ACTION%"=="live-test" goto live-test
 if /i "%BEJ_ACTION%"=="office" goto office
 if /i "%BEJ_ACTION%"=="supabase-check" goto supabase-check
 if /i "%BEJ_ACTION%"=="supabase-sync-check" goto supabase-sync-check
-echo Usage: bej.cmd [demo^|register^|start^|check^|test^|live-test^|office^|supabase-check^|supabase-sync-check]
+if /i "%BEJ_ACTION%"=="brand-discord" goto brand-discord
+echo Usage: bej.cmd [demo^|register^|start^|check^|test^|live-test^|office^|supabase-check^|supabase-sync-check^|brand-discord]
 exit /b 1
 :demo
 "%BEJ_NODE%" node_modules/tsx/dist/cli.mjs src/demo.ts
@@ -43,4 +44,7 @@ exit /b %errorlevel%
 exit /b %errorlevel%
 :supabase-sync-check
 "%BEJ_NODE%" node_modules/tsx/dist/cli.mjs --env-file=.env src/supabase-sync-check.ts
+exit /b %errorlevel%
+:brand-discord
+"%BEJ_NODE%" node_modules/tsx/dist/cli.mjs --env-file=.env src/brand-discord.ts
 exit /b %errorlevel%

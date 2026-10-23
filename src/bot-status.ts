@@ -2,11 +2,11 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-export type BotStatus = { online: boolean; mode?: string; model?: string; researchMode?: string; activeMission?: string; updatedAt?: string };
+export type BotStatus = { online: boolean; version?: string; mode?: string; model?: string; researchMode?: string; activeMission?: string; updatedAt?: string };
 export function parseBotStatus(value: any, now = Date.now()): BotStatus {
   const updated = Date.parse(value?.updatedAt);
   if (!Number.isFinite(updated) || now - updated > 15000 || updated > now + 5000) return { online: false };
-  return { online: value.online === true, mode: value.mode, model: value.model, researchMode: value.researchMode, activeMission: value.activeMission, updatedAt: value.updatedAt };
+  return { online: value.online === true, version: value.version, mode: value.mode, model: value.model, researchMode: value.researchMode, activeMission: value.activeMission, updatedAt: value.updatedAt };
 }
 export async function readBotStatus(directory = 'data'): Promise<BotStatus> {
   try { return parseBotStatus(JSON.parse(await readFile(join(directory, 'bot-status.json'), 'utf8'))); }

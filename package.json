@@ -1,6 +1,6 @@
 {
   "name": "bej-hub",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,7 +11,8 @@
     "start": "tsx --env-file=.env src/bot.ts",
     "register": "tsx --env-file=.env src/register.ts",
     "check": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "assets": "node scripts/build-brand-assets.mjs"
   },
   "dependencies": {
     "discord.js": "^14.22.0",
