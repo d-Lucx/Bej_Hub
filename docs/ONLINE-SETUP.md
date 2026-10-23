@@ -59,6 +59,22 @@ Keep **one instance** and **one bot process**. Stop your local `bej.cmd start` b
 
 The website shows a setup/unavailable response rather than exposing records if Auth or database settings are missing. Do not remove the authentication requirement to troubleshoot a deploy.
 
+### If you created a Web Service manually
+
+A manually created service does not automatically use `render.yaml`. On its **Settings** page, set these values explicitly:
+
+| Setting | Value |
+| --- | --- |
+| Build Command | `pnpm install --frozen-lockfile --prod=false && pnpm run build` |
+| Start Command | `pnpm run cloud` |
+| Health Check Path | `/api/health` |
+
+In **Environment**, set `NODE_VERSION=24`, `NODE_ENV=production`, `BEJ_STORAGE=supabase`, `BEJ_AUTH_REQUIRED=true`, and `BEJ_OWNER_EMAIL` to your allowed Google email. Add `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY`, plus the Gemini and Discord settings listed in `render.yaml`. Enter their values privately in Render; copying a local `.env` file into GitHub is not necessary.
+
+Do not use `pnpm run start` here: that command runs only the local bot and explicitly loads local `.env`. The cloud command starts both the website and bot and reads Render's injected environment variables. A `.env: not found` startup error means the service is using the local command.
+
+If using **Add from .env**, replace local-only values afterward: `BEJ_STORAGE` must be `supabase`, `BEJ_AUTH_REQUIRED` must be `true`, and `BEJ_PUBLIC_URL` must be blank (use Render's automatic external URL) or your exact HTTPS office origin. Set `NODE_VERSION=24` even if a different version was selected previously. Save the configuration, then deploy the latest commit.
+
 ## 4. Finish Supabase redirect configuration
 
 Once Render assigns an address such as `https://bej-hub-xxxx.onrender.com`, set:
