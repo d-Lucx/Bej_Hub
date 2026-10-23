@@ -1,5 +1,5 @@
-import { authContext } from '../../../src/web-auth';
-import { trustedRequest } from '../../../src/auth-policy';
+import { authContext } from '../../../src/web-auth.ts';
+import { trustedRequest } from '../../../src/auth-policy.ts';
 export async function POST(request: Request) {
   try {
     const auth = authContext(request);
