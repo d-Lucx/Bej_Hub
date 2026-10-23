@@ -9,7 +9,7 @@ test('supplied analysis omits tools and preserves source provenance for Writer',
   const requests: any[] = [];
   const request = (async (_url: any, init: any) => {
     requests.push(JSON.parse(init.body));
-    const text = requests.length === 1 ? JSON.stringify({ brief: 'Bej Hub has three roles. [S1]' }) : JSON.stringify({ title: 'Welcome', body: 'Three roles help with missions. [S1]' });
+    const text = requests.length === 1 ? JSON.stringify({ brief: 'Bej Hub has three roles. [S1]', alignment: 'supported', clarification_question: '' }) : JSON.stringify({ title: 'Welcome', body: 'Three roles help with missions. [S1]' });
     return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text }] } }], usageMetadata: { totalTokenCount: 30 } }));
   }) as typeof fetch;
   const provider = new GeminiProvider('fake', 'test', request);

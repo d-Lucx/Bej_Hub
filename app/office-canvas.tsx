@@ -59,7 +59,7 @@ export default function OfficeCanvas({ agents, selected, onSelect }: { agents: a
           actor.ring.setVisible(current.current.selected === agent.id);
           const active = agent.state !== 'IDLE';
           actor.sprite.y = 304 + (reduced ? 0 : Math.sin(time / (active ? 170 : 650)) * (active ? 2 : .6));
-          actor.bubble.setText(agent.state === 'THINKING' ? '…' : agent.state === 'WORKING' ? '>_' : agent.state === 'HANDOFF' ? '↗' : agent.state === 'BLOCKED' ? '!' : 'z z');
+          actor.bubble.setText(agent.state === 'THINKING' ? '…' : agent.state === 'WORKING' ? '>_' : agent.state === 'HANDOFF' ? '↗' : agent.state === 'BLOCKED' ? '!' : agent.state.startsWith('WAITING_') ? '?' : 'z z');
           actor.bubble.setColor(agent.state === 'BLOCKED' ? '#a64837' : '#635642');
           actor.bubble.setAlpha(active ? 1 : .65);
         }

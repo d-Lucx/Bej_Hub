@@ -6,9 +6,15 @@ async function main() {
   const commands = [
     new SlashCommandBuilder().setName('mission').setDescription('Ask Bej Hub to research a topic and draft a post.').addStringOption(option => option.setName('prompt').setDescription('What should the team research and write?').setRequired(true).setMaxLength(2000)).addStringOption(option => option.setName('sources').setDescription('Paste reference text (not just a URL). Analyzed without Google Search.').setMaxLength(6000)),
     new SlashCommandBuilder().setName('status').setDescription('See the office activity and session token usage.'),
+    ...(['approve', 'reject', 'clarify'] as const).map(name => {
+      const command = new SlashCommandBuilder().setName(name).setDescription(name === 'approve' ? 'Approve and deliver a saved draft.' : name === 'reject' ? 'Reject a paused mission without delivering a draft.' : 'Clarify a paused mission and resume research.')
+        .addStringOption(option => option.setName('mission_id').setDescription('Full mission ID from the review card.').setRequired(true).setMinLength(36).setMaxLength(36));
+      if (name === 'clarify') command.addStringOption(option => option.setName('response').setDescription('Clarify the intended subject or task.').setRequired(true).setMaxLength(2000));
+      return command;
+    }),
   ];
   // Individual upserts preserve unrelated commands on an existing bot application.
   for (const command of commands) await rest.post(Routes.applicationGuildCommands(settings.DISCORD_APPLICATION_ID, settings.DISCORD_GUILD_ID), { body: command.toJSON() });
-  console.log('Registered /mission and /status in your server.');
+  console.log('Registered /mission, /status, /approve, /reject, and /clarify in your server.');
 }
 main().catch(() => { console.error('Registration failed. Check application, server, bot token, and installation scopes.'); process.exitCode = 1; });

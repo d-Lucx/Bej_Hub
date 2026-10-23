@@ -4,7 +4,15 @@ import { join } from 'node:path';
 import { z } from 'zod';
 
 export const QueueInput = z.object({ prompt: z.string().trim().min(1).max(2000), sources: z.string().trim().min(1).max(6000) }).strict();
-export type QueueEntry = z.infer<typeof QueueInput> & { id: string; status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'EXPIRED' | 'CANCELLED'; created_at: string; mission_id?: string; error?: string };
+export type QueueEntry = z.infer<typeof QueueInput> & { id: string; status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'EXPIRED' | 'CANCELLED' | 'WAITING_APPROVAL' | 'WAITING_CLARIFICATION' | 'REJECTED'; created_at: string; mission_id?: string; error?: string; action?: 'approve' | 'reject' | 'clarify'; response?: string; review_id?: string };
+export const ReviewInput = z.object({ id: z.uuid(), action: z.enum(['approve', 'reject', 'clarify']), response: z.string().trim().min(1).max(2000).optional() }).strict().refine(input => input.action !== 'clarify' || !!input.response, { message: 'Provide a clarification.' });
+export async function enqueueReview(input: unknown, directory = 'data/queue') {
+  const review = ReviewInput.parse(input);
+  const entry: QueueEntry = { id: randomUUID(), prompt: `${review.action}: ${review.id}`, sources: '', status: 'QUEUED', created_at: new Date().toISOString(), action: review.action, review_id: review.id, response: review.response };
+  await mkdir(directory, { recursive: true });
+  await writeQueue(join(directory, `${Date.now()}-${entry.id}.json`), entry);
+  return entry;
+}
 export async function writeQueue(path: string, entry: QueueEntry) {
   const temp = `${path}.${randomUUID()}.tmp`;
   await writeFile(temp, JSON.stringify(entry)); await rename(temp, path);

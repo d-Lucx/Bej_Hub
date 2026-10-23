@@ -1,5 +1,5 @@
 import { WebhookClient } from 'discord.js';
-import type { Role } from './contracts.js';
+import type { Role, Mission } from './contracts.js';
 import type { Messenger } from './studio.js';
 
 const names: Record<Role, string> = { manager: 'Bej Manager', researcher: 'Research Bot', writer: 'Writer Bot' };
@@ -18,7 +18,8 @@ export function authorized(guild: string | null, channel: string | null, user: s
 }
 export class DiscordMessenger implements Messenger {
   private webhook: WebhookClient;
-  constructor(url: string, private avatars: Partial<Record<Role, string>> = {}) { this.webhook = new WebhookClient({ url }); }
+  constructor(url: string, private avatars: Partial<Record<Role, string>> = {}, private review?: (mission: Mission) => Promise<void>) { this.webhook = new WebhookClient({ url }); }
+  async requestReview(mission: Mission) { await this.review?.(mission); }
   async send(role: Role, text: string) {
     for (const content of chunks(text)) {
       try { await this.webhook.send({ content, username: names[role], avatarURL: this.avatars[role] || undefined, allowedMentions: { parse: [] } }); }

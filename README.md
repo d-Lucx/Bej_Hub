@@ -1,5 +1,21 @@
 # Bej Hub · Local virtual studio
 
+## Human review and clarification
+
+The Discord bot now requires human approval before final draft delivery. It saves a **WAITING_APPROVAL** mission and posts a review preview with **Approve & deliver** and **Reject** buttons. Approval uses the saved draft, without another AI call. The private office is the delivery destination; nothing is published outside it.
+
+When supplied references contradict the requested premise, or lack essential evidence, Researcher returns a structured mismatch and the mission enters **WAITING_CLARIFICATION** before Writer runs. Use **Clarify** on its Discord card or answer in the office review panel. Clarification repeats planning/research on the same mission with your correction and can consume additional quota. Optional missing tone/audience preferences do not by themselves require clarification. This classification is model-assisted, so review remains useful even when no conflict is detected.
+
+Paused missions survive bot restarts and release the office for other missions. The **A human touch** panel lists pending work, including missions outside the latest 20 history entries. Approval/rejection actions check the current saved state and hold a per-mission lock, so duplicate or stale actions cannot intentionally deliver a completed draft again. A crash during **DELIVERING** requires manual review; delivery is never automatically replayed.
+
+Restart the bot and run `bej.cmd register` to add `/approve mission_id:...`, `/reject mission_id:...`, and `/clarify mission_id:... response:...`. Use the full mission ID shown on the review card. The same server/channel/user allowlist applies to all commands, buttons, and clarification forms. Only local CLI demos/live-test runs bypass final approval; they print output locally.
+
+If Discord cannot deliver a review card, the mission remains pending and can be handled from the office. Rejection retains the record and draft for inspection and prevents final delivery. Web review responses are queued for the bot; keep `bej.cmd start` running.
+
+## Repository
+
+Source: https://github.com/d-Lucx/Bej_Hub. `.env`, local mission/queue data, dependencies, and build output are excluded. GitHub Actions runs TypeScript checks and offline tests without service credentials. Before a push, run `node node_modules/tsx/dist/cli.mjs src/audit-staged.ts` to check staged files for configured secrets and private/generated paths. The audit is a targeted check, not a general-purpose secret scanner.
+
 ## Phase 2 local cozy office
 
 Run `bej.cmd office` in a second terminal, then visit http://127.0.0.1:3000. Restart `bej.cmd start` in the bot terminal after this update to activate the web mission queue. Keep both running: the office reads saved mission events every 1.5 seconds, and the bot processes queued web missions sequentially. Sending a web mission uses the same configured provider and posts the agent updates to your private Discord office.
